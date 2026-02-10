@@ -34,21 +34,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Determine image tag
+      - name: Determine image tags
         id: tag
         run: |
+          IMAGE="${{ env.IMAGE_NAME }}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tags=${{ env.IMAGE_NAME }}:${{ inputs.tag || 'latest' }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ inputs.tag }}"
+            TAG="${TAG:-latest}"
+            echo "tags=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
           else
-            VERSION=${GITHUB_REF#refs/tags/v}
-            MAJOR_MINOR=$(echo "$VERSION" | cut -d. -f1-2)
-            {
-              echo "tags<<EOF"
-              echo "${{ env.IMAGE_NAME }}:${VERSION}"
-              echo "${{ env.IMAGE_NAME }}:${MAJOR_MINOR}"
-              echo "${{ env.IMAGE_NAME }}:latest"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
+            # Strip refs/tags/ prefix, then strip optional leading v
+            RAW_TAG="${GITHUB_REF##refs/tags/}"
+            VERSION="${RAW_TAG#v}"
+            MAJOR_MINOR="$(echo "${VERSION}" | cut -d. -f1-2)"
+            echo "tags=${IMAGE}:${VERSION},${IMAGE}:${MAJOR_MINOR},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push Docker image
